@@ -1,4 +1,4 @@
-ReviewGuard – Fake Review Detection System
+**ReviewGuard – Fake Review Detection System**
 
 Project Overview
 ReviewGuard is an end-to-end **Machine Learning and NLP-based system** designed to classify product reviews as **fake or genuine**.  
