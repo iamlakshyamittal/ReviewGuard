@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReviewGuard – Fake Review Detector</title>
+
+  <style>
+    /* ===== BASE ===== */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f2f4f8;
+      padding: 20px;
+      margin: 0;
+      transition: background 0.4s ease, color 0.4s ease;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
+
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      transition: background 0.4s ease;
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 28px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      margin-bottom: 25px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    textarea, input[type="number"] {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 18px;
+      font-size: 14px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-family: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    /* ===== BUTTONS ===== */
+    button {
+      padding: 12px 20px;
+      font-size: 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      opacity: 0.9;
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.analyze {
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      color: white;
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      margin-bottom: 15px;
+    }
+
+    .example-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .example-buttons button {
+      background: #f0f0f0;
+      color: #333;
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .example-buttons button:hover {
+      background: #e0e0e0;
+    }
+
+    /* ===== LOADING SPINNER ===== */
+    .spinner-container {
+      text-align: center;
+      padding: 20px;
+      display: none;
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #007bff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .spinner-text {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    /* ===== STATS ===== */
+    .stats {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-box {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      flex: 1;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      opacity: 0.9;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ===== RESULT CARD ===== */
+    .result-box {
+      margin-top: 20px;
+      padding: 22px;
+      border-radius: 14px;
+      display: none;
+      animation: slideUp 0.5s ease forwards;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 15px;
+    }
+
+    .result-icon {
+      font-size: 32px;
+    }
+
+    .fake {
+      background: linear-gradient(135deg, #ffe5e5, #fff);
+      border-left: 6px solid #e53935;
+    }
+
+    .legit {
+      background: linear-gradient(135deg, #e8f5e9, #fff);
+      border-left: 6px solid #43a047;
+    }
+
+    .confidence-row {
+      margin-top: 14px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .confidence-bar-bg {
+      background: #ddd;
+      border-radius: 20px;
+      overflow: hidden;
+      height: 12px;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .confidence-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #00c6ff, #007bff);
+      box-shadow: 0 0 10px rgba(0,198,255,0.8);
+      transition: width 1.4s ease;
+      border-radius: 20px;
+    }
+
+    .badge {
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 11px;
+      color: white;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .low { background: #43a047; }
+    .medium { background: #fb8c00; }
+    .high { background: #e53935; }
+
+    .details {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid rgba(0,0,0,0.1);
+      font-size: 13px;
+    }
+
+    .details-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .details-label {
+      font-weight: 600;
+      color: #666;
+    }
+
+    /* ===== ERROR MESSAGE ===== */
+    .error-box {
+      background: #fee;
+      border: 1px solid #fcc;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 15px;
+      display: none;
+      animation: shake 0.5s;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+
+    .error-box strong {
+      color: #c33;
+    }
+
+    /* ===== DARK MODE ===== */
+    body.dark {
+      background: #121212;
+      color: #e0e0e0;
+    }
+
+    body.dark .card {
+      background: #1e1e1e;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    body.dark .subtitle {
+      color: #aaa;
+    }
+
+    body.dark textarea,
+    body.dark input {
+      background: #2c2c2c;
+      color: white;
+      border: 1px solid #555;
+    }
+
+    body.dark .example-buttons button {
+      background: #2c2c2c;
+      color: #e0e0e0;
+    }
+
+    body.dark .example-buttons button:hover {
+      background: #3c3c3c;
+    }
+
+    body.dark .result-box.legit {
+      background: linear-gradient(135deg, #0f3d2e, #112b21);
+      border-left: 6px solid #4caf50;
+      color: #eafff3;
+    }
+
+    body.dark .result-box.fake {
+      background: linear-gradient(135deg, #3d0f0f, #2b1111);
+      border-left: 6px solid #ef5350;
+      color: #ffecec;
+    }
+
+    body.dark .confidence-bar-bg {
+      background: #333;
+    }
+
+    body.dark .confidence-bar-fill {
+      background: linear-gradient(90deg, #00e5ff, #2979ff);
+      box-shadow: 0 0 14px rgba(0,229,255,0.9);
+    }
+
+    body.dark .details {
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    body.dark .details-label {
+      color: #aaa;
+    }
+
+    body.dark .spinner {
+      border-color: #333;
+      border-top-color: #007bff;
+    }
+
+    body.dark .spinner-text {
+      color: #aaa;
+    }
+
+    body.dark #advancedOptions {
+      background: #2c2c2c;
+      border: 1px solid #444;
+    }
+
+    body.dark #advancedOptions small {
+      color: #aaa;
+    }
+
+    /* ===== DARK TOGGLE ===== */
+    .dark-toggle {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      z-index: 10;
+    }
+
+    .switch {
+      width: 40px;
+      height: 20px;
+      background: #ccc;
+      border-radius: 20px;
+      position: relative;
+      transition: background 0.3s;
+    }
+
+    .switch::after {
+      content: "";
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    body.dark .switch {
+      background: #4caf50;
+    }
+
+    body.dark .switch::after {
+      transform: translateX(20px);
+    }
+
+    /* ===== FOOTER ===== */
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      padding: 20px;
+    }
+
+    .footer a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+
+      .card {
+        padding: 20px;
+      }
+
+      h2 {
+        font-size: 22px;
+      }
+
+      .stats {
+        flex-direction: column;
+      }
+
+      .example-buttons {
+        flex-direction: column;
+      }
+
+      .example-buttons button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  
+  <!-- Stats Card -->
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-number" id="totalReviews">0</div>
+      <div class="stat-label">Reviews Analyzed</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-number" id="fakeCount">0</div>
+      <div class="stat-label">Fake Detected</div>
+    </div>
+  </div>
+
+  <!-- Main Card -->
+  <div class="card">
+    <div class="dark-toggle" onclick="toggleDark()">
+      <span>🌙</span>
+      <div class="switch"></div>
+    </div>
+
+    <h2>
+      <span>🛡️</span>
+      <span>ReviewGuard</span>
+    </h2>
+    <div class="subtitle">AI-powered Fake Review Detection System</div>
+
+    <!-- Example Buttons -->
+    <div class="example-buttons">
+      <button onclick="loadExample('suspicious')">
+        🚨 Try Suspicious Review
+      </button>
+      <button onclick="loadExample('legit')">
+        ✅ Try Legitimate Review
+      </button>
+      <button onclick="clearForm()">
+        🗑️ Clear Form
+      </button>
+    </div>
+
+    <!-- Input Form -->
+    <label>Review Text</label>
+    <textarea 
+      id="review" 
+      placeholder="Paste the review text here... (e.g., 'This product exceeded my expectations. The quality is excellent and delivery was fast.')">
+    </textarea>
+
+    <label>Rating (1–5)</label>
+    <input type="number" id="rating" min="1" max="5" step="0.1" value="3">
+
+    <!-- Advanced Options (Collapsible) -->
+    <div style="margin: 15px 0;">
+      <button type="button" onclick="toggleAdvanced()" style="background: #f0f0f0; color: #333; padding: 8px 15px; font-size: 13px; width: auto;">
+        ⚙️ <span id="advancedToggleText">Show Advanced Options</span>
+      </button>
+    </div>
+
+    <div id="advancedOptions" style="display: none; padding: 15px; background: #f9f9f9; border-radius: 8px; margin-bottom: 15px;">
+      <p style="font-size: 13px; color: #666; margin-top: 0;">
+        💡 Adding reviewer context improves accuracy significantly!
+      </p>
+      
+      <label>Reviewer's Total Reviews</label>
+      <input type="number" id="totalReviews" min="1" max="1000" value="1" style="margin-bottom: 10px;">
+      <small style="display: block; margin-bottom: 15px; color: #666;">
+        How many reviews has this person written? (Fake reviewers often have 5-20 reviews)
+      </small>
+
+      <label>Reviewer's Average Rating</label>
+      <input type="number" id="avgRating" min="1" max="5" step="0.1" value="4.0" style="margin-bottom: 10px;">
+      <small style="display: block; color: #666;">
+        What's their average rating across all reviews? (Fake reviewers often only give 1★ or 5★)
+      </small>
+    </div>
+
+    <button class="analyze" onclick="predict()">
+      🔍 Analyze Review
+    </button>
+
+    <!-- Loading Spinner -->
+    <div id="spinner" class="spinner-container">
+      <div class="spinner"></div>
+      <div class="spinner-text">Analyzing review...</div>
+    </div>
+
+    <!-- Error Box -->
+    <div id="errorBox" class="error-box">
+      <strong>⚠️ Error:</strong>
+      <p id="errorMessage"></p>
+    </div>
+
+    <!-- Result Box -->
+    <div id="resultBox" class="result-box">
+      <div class="result-header">
+        <span id="resultIcon" class="result-icon">✅</span>
+        <span id="resultTitle">Review Looks Legitimate</span>
+      </div>
+
+      <div class="confidence-row">
+        <span>Confidence:</span>
+        <strong><span id="confidence">0</span>%</strong>
+        <span id="riskBadge" class="badge low">LOW</span>
+      </div>
+
+      <div class="confidence-bar-bg">
+        <div id="confidenceBar" class="confidence-bar-fill"></div>
+      </div>
+
+      <div class="details">
+        <div class="details-row">
+          <span class="details-label">Fake Probability:</span>
+          <span id="fakeProbability">0%</span>
+        </div>
+        <div class="details-row">
+          <span class="details-label">Legitimate Probability:</span>
+          <span id="legitProbability">0%</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <strong>ReviewGuard</strong> • Machine Learning Project<br>
+    Built with Flask + scikit-learn • 
+    <a href="https://github.com/iamlakshyamittal/ReviewGuard" target="_blank">View on GitHub</a>
+  </div>
+
+</div>
+
+<script>
+  // Load stats from localStorage
+  let stats = JSON.parse(localStorage.getItem('reviewguard_stats') || '{"total":0,"fake":0}');
+  updateStatsDisplay();
+
+  function toggleAdvanced() {
+    const advancedDiv = document.getElementById("advancedOptions");
+    const toggleText = document.getElementById("advancedToggleText");
+    
+    if (advancedDiv.style.display === "none") {
+      advancedDiv.style.display = "block";
+      toggleText.textContent = "Hide Advanced Options";
+    } else {
+      advancedDiv.style.display = "none";
+      toggleText.textContent = "Show Advanced Options";
+    }
+  }
+
+  function updateStatsDisplay() {
+    document.getElementById('totalReviews').textContent = stats.total;
+    document.getElementById('fakeCount').textContent = stats.fake;
+  }
+
+  function updateStats(isFake) {
+    stats.total++;
+    if (isFake) stats.fake++;
+    localStorage.setItem('reviewguard_stats', JSON.stringify(stats));
+    updateStatsDisplay();
+  }
+
+  function toggleDark() {
+    document.body.classList.toggle("dark");
+    localStorage.setItem('darkMode', document.body.classList.contains('dark'));
+  }
+
+  // Load dark mode preference
+  if (localStorage.getItem('darkMode') === 'true') {
+    document.body.classList.add('dark');
+  }
+
+  function loadExample(type) {
+    const examples = {
+      suspicious: {
+        text: "AMAZING PRODUCT!!! This is the BEST thing I've ever bought in my ENTIRE LIFE!!! Everyone MUST buy this NOW!!! Don't even think twice! 100% recommend! Five stars all the way! You won't regret it! ORDER NOW!!!",
+        rating: 5,
+        totalReviews: 15,
+        avgRating: 4.9
+      },
+      legit: {
+        text: "I purchased this product last month and have been using it regularly. The build quality is solid and it works as described in the listing. Setup was straightforward, though the instructions could be clearer. The price point is reasonable for what you get. Overall, I'm satisfied with my purchase and would recommend it to others looking for a reliable option in this category.",
+        rating: 4,
+        totalReviews: 47,
+        avgRating: 3.8
+      }
+    };
+
+    const example = examples[type];
+    document.getElementById("review").value = example.text;
+    document.getElementById("rating").value = example.rating;
+    document.getElementById("totalReviews").value = example.totalReviews;
+    document.getElementById("avgRating").value = example.avgRating;
+    
+    // Show advanced options so user can see the context
+    document.getElementById("advancedOptions").style.display = "block";
+    document.getElementById("advancedToggleText").textContent = "Hide Advanced Options";
+    
+    // Clear previous results
+    document.getElementById("resultBox").style.display = "none";
+    document.getElementById("errorBox").style.display = "none";
+  }
+
+  function clearForm() {
+    document.getElementById("review").value = "";
+    document.getElementById("rating").value = 3;
+    document.getElementById("resultBox").style.display = "none";
+    document.getElementById("errorBox").style.display = "none";
+  }
+
+  function showError(message) {
+    const errorBox = document.getElementById("errorBox");
+    const errorMessage = document.getElementById("errorMessage");
+    
+    errorMessage.textContent = message;
+    errorBox.style.display = "block";
+    
+    // Hide after 5 seconds
+    setTimeout(() => {
+      errorBox.style.display = "none";
+    }, 5000);
+  }
+
+  async function predict() {
+    const reviewText = document.getElementById("review").value.trim();
+    const rating = Number(document.getElementById("rating").value);
+    const totalReviews = Number(document.getElementById("totalReviews").value);
+    const avgRating = Number(document.getElementById("avgRating").value);
+
+    // Validation
+    if (!reviewText) {
+      showError("Please enter a review text!");
+      return;
+    }
+
+    if (reviewText.length < 10) {
+      showError("Review text is too short. Please enter at least 10 characters.");
+      return;
+    }
+
+    if (rating < 1 || rating > 5) {
+      showError("Rating must be between 1 and 5!");
+      return;
+    }
+
+    // Hide previous results and errors
+    document.getElementById("resultBox").style.display = "none";
+    document.getElementById("errorBox").style.display = "none";
+    
+    // Show loading spinner
+    const spinner = document.getElementById("spinner");
+    spinner.style.display = "block";
+
+    try {
+      const response = await fetch("http://127.0.0.1:5000/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          review_text: reviewText, 
+          rating: rating,
+          reviewer_total_reviews: totalReviews,
+          reviewer_avg_rating: avgRating
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} - ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Hide spinner
+      spinner.style.display = "none";
+
+      // Show results
+      displayResults(data);
+
+      // Update stats
+      updateStats(data.is_fake);
+
+    } catch (error) {
+      spinner.style.display = "none";
+      
+      let errorMsg = "Unable to connect to the API server. ";
+      
+      if (error.message.includes("Failed to fetch")) {
+        errorMsg += "Make sure the Flask server is running on http://127.0.0.1:5000";
+      } else {
+        errorMsg += error.message;
+      }
+      
+      showError(errorMsg);
+      console.error("Error:", error);
+    }
+  }
+
+  function displayResults(data) {
+    const box = document.getElementById("resultBox");
+    const title = document.getElementById("resultTitle");
+    const icon = document.getElementById("resultIcon");
+    const confidenceText = document.getElementById("confidence");
+    const bar = document.getElementById("confidenceBar");
+    const badge = document.getElementById("riskBadge");
+    const fakeProbText = document.getElementById("fakeProbability");
+    const legitProbText = document.getElementById("legitProbability");
+
+    // Show result box
+    box.style.display = "block";
+    
+    // Reset bar
+    bar.style.width = "0%";
+    confidenceText.innerText = "0";
+
+    // Animate confidence counter
+    const targetConfidence = Math.round(data.confidence * 100);
+    let currentConfidence = 0;
+
+    const counterInterval = setInterval(() => {
+      currentConfidence++;
+      confidenceText.innerText = currentConfidence;
+      if (currentConfidence >= targetConfidence) {
+        clearInterval(counterInterval);
+      }
+    }, 12);
+
+    // Animate progress bar
+    setTimeout(() => {
+      bar.style.width = targetConfidence + "%";
+    }, 150);
+
+    // Set risk badge
+    const riskLevel = data.risk_level.toLowerCase();
+    badge.className = "badge " + riskLevel;
+    badge.innerText = data.risk_level;
+
+    // Set probabilities
+    fakeProbText.textContent = Math.round(data.fake_probability * 100) + "%";
+    legitProbText.textContent = Math.round(data.legitimate_probability * 100) + "%";
+
+    // Set result status
+    if (data.is_fake) {
+      box.className = "result-box fake";
+      title.innerText = "⚠️ Fake Review Detected";
+      icon.innerText = "🚨";
+    } else {
+      box.className = "result-box legit";
+      title.innerText = "Review Looks Legitimate";
+      icon.innerText = "✅";
+    }
+
+    // Scroll to results
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // Allow Enter key to submit in textarea (Ctrl+Enter)
+  document.getElementById("review").addEventListener("keydown", function(e) {
+    if (e.ctrlKey && e.key === "Enter") {
+      predict();
+    }
+  });
+</script>
+
+</body>
+</html>
